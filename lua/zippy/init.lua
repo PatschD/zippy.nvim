@@ -1,21 +1,20 @@
 local M = {}
 
 local ts_utils = require("nvim-treesitter.ts_utils")
-local ts_locals = require("nvim-treesitter.locals")
-local ts_query = require("nvim-treesitter.query")
 
--- in some helper module
-function utils_Set(list)
-	local set = {}
-	for _, l in ipairs(list) do
-		set[l] = true
-	end
-	return set
-end
+--[[ -- in some helper module ]]
+--[[ function utils_Set(list) ]]
+--[[ 	local set = {} ]]
+--[[ 	for _, l in ipairs(list) do ]]
+--[[ 		set[l] = true ]]
+--[[ 	end ]]
+--[[ 	return set ]]
+--[[ end ]]
 
 local lua_keys = {
 	assignment_statement = true,
 	function_call = true,
+  arguments = true,
 	parameters = "block",
 	condition = "block",
 }
@@ -24,14 +23,11 @@ local lua_keys = {
 --[[  local f = require'nvim-treesitter'.statusline({}) ]]
 --[[ print(f, "F") ]]
 
-local usage_namespace = vim.api.nvim_create_namespace("nvim-treesitter-usages")
+--[[ local usage_namespace = vim.api.nvim_create_namespace("nvim-treesitter-usages") ]]
+--[[ local cursor_pos = vim.api.nvim_win_get_cursor(0) ]]
+--[[ vim.api.nvim_set_hl(0, "ZIPPY", { default = true, bg = "#000000", fg = "#ffffff" }) ]]
 
-local cursor_pos = vim.api.nvim_win_get_cursor(0)
-
-vim.api.nvim_set_hl(0, "ZIPPY", { default = true, bg = "#000000", fg = "#ffffff" })
-
-local node_at_cursor = ts_utils.get_node_at_cursor(0)
-local text = vim.treesitter.query.get_node_text(node_at_cursor, 0)
+--[[ local text = vim.treesitter.query.get_node_text(node_at_cursor, 0) ]]
 --[[ P(text) ]]
 
 --[[ local parent = node_at_cursor:parent() ]]
@@ -53,57 +49,74 @@ local text = vim.treesitter.query.get_node_text(node_at_cursor, 0)
 
 local function getSibling(node)
 	local type_text_node = node:type()
+
 	local sibling = node:next_sibling()
 
 	if sibling == nil then
 		return node
 	end
 
+	while true do
+		if sibling:type() == "comment" then
+			sibling = sibling:next_sibling()
+		else
+			break
+		end
+	end
+
 	local type_text_sibling = sibling:type()
 
 	if lua_keys[type_text_node] == type_text_sibling then
-		return node:next_sibling()
+		return sibling, "above"
 	else
 		return node
 	end
 end
 
 local function getParent(node, cnt)
-	if cnt > 5 or node == nil then
+	if cnt > 10 or node == nil then
 		return nil
 	end
 
 	local type_text = node:type()
+  print(type_text, cnt)
 
 	if lua_keys[type_text] then
-		return node --[[ getSibling(node) ]]
+		local outnode, direction = getSibling(node)
+		return outnode, direction
 	end
 
 	return getParent(node:parent(), cnt + 1)
 end
 
-local function set_print_statement(node, text, placement, format)
+local function set_print_statement(node, print_text, placement, format) -- hello lll
 	local start_row, _, end_row, _ = node:range()
+
 	local row
 	if placement == "above" then
 		row = start_row
 	else
 		row = end_row + 1
 	end
-	vim.api.nvim_buf_set_lines(0, row, row, true, { text })
+	vim.api.nvim_buf_set_lines(0, row, row, true, { print_text })
+
 	if format then
 		vim.lsp.buf.format({ range = {
-			["start"] = { end_row + 2, 0 },
-			["end"] = { end_row + 2, -1 },
+			["start"] = { row + 1, 0 },
+			["end"] = { row + 1, -1 },
 		} })
 	end
 end
 
 local test_variable, test2 = "test", "test2"
 
-local outp = getParent(node_at_cursor, 0) or node_at_cursor
-set_print_statement(outp, "print('HELLO')", "below", true)
+local node_at_cursor = ts_utils.get_node_at_cursor(0)
+local outp, placement = getParent(node_at_cursor, 0) --[[ or node_at_cursor ]]
+outp = outp or node_at_cursor
+placement = placement or "below" 
+set_print_statement(outp, "print('HELLO')",placement, true)
 
+--[[ vim.api.nvim_buf_set_lines(0, row, row, true, { text }) ]]
 --[[ local sibling1 = outp:next_sibling() ]]
 --[[ print(sibling1:type(), "SIBLING1") ]]
 
