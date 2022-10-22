@@ -8,6 +8,7 @@ local lua_keys = {
 	arguments = true,
 	parameters = true,
 	condition = true,
+	language_format_behaviour = "range",
 }
 
 local js_keys = {
@@ -16,6 +17,7 @@ local js_keys = {
 	parenthesized_expression = true,
 
 	sibling_block_placement_behaviour = "inside",
+	language_format_behaviour = "range",
 }
 
 local python_keys = {
@@ -26,6 +28,8 @@ local python_keys = {
 
 	sibling_block_placement_behaviour = "before",
 	placement_default_behaviour = "behind",
+
+	language_format_behaviour = "full",
 }
 
 M.supported_languages = {
@@ -65,7 +69,7 @@ local function getSibling(node)
 	if M.language_keys[type_text_node] == type_text_sibling then
 		return sibling, M.language_keys["sibling_block_placement_behaviour"]
 	else
-		return node, M.language_keys["placement_default_behaviour"]
+		return node
 	end
 end
 
@@ -116,12 +120,13 @@ local function set_print_statement(node, print_text, placement, format) -- hello
 
 	vim.api.nvim_buf_set_lines(0, row_s, row_e, true, { updated_text })
 
-	if format then
-		print(row_s, row_e)
+	if format == "range" then
 		vim.lsp.buf.format({ range = {
 			["start"] = { row_s + 0, 0 },
 			["end"] = { row_e + 2, -1 },
 		} })
+	elseif format == "full" then
+		vim.lsp.buf.format({ async = true })
 	end
 end
 
@@ -137,10 +142,12 @@ M.insert_print = function()
 
 	outp = outp or node_at_cursor
 	placement = placement or M.language_keys["placement_default_behaviour"]
-	set_print_statement(outp, "print('HELLO')", placement, true)
+	local format = M.language_keys["language_format_behaviour"]
+
+	set_print_statement(outp, "print('HELLO')", placement, format)
 end
 
---[[ M.insert_print() ]]
+M.insert_print()
 
 --[[ vim.keymap.set("n", "<leader>lg", function() ]]
 --[[   R("zippy").insert_print() ]]
