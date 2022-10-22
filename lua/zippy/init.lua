@@ -39,6 +39,8 @@ local python_keys = {
     identifier =  "block",
     call = "block",
     subscript = "block",
+    with_clause = "block",
+    pattern_list = "block",
 	},
 	options = {
 		sibling_block_placement_behaviour = "before",
