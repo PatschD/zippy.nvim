@@ -3,33 +3,48 @@ local M = {}
 local ts_utils = require("nvim-treesitter.ts_utils")
 
 local lua_keys = {
-	assignment_statement = true,
-	function_call = true,
-	arguments = true,
-	parameters = true,
-	condition = true,
-	language_format_behaviour = "range",
+	nodes = {
+		assignment_statement = true,
+		function_call = true,
+		arguments = true,
+		parameters = true,
+		condition = true,
+	},
+	options = {
+		language_format_behaviour = "range",
+	},
 }
 
 local js_keys = {
-	variable_declarator = true,
-	formal_parameters = "statement_block",
-	parenthesized_expression = true,
-
-	sibling_block_placement_behaviour = "inside",
-	language_format_behaviour = "range",
+	nodes = {
+		variable_declarator = true,
+		formal_parameters = "statement_block",
+		parenthesized_expression = true,
+		expression_statement = true,
+		identifier = "statement_block",
+	},
+	options = {
+		sibling_block_placement_behaviour = "inside",
+		language_format_behaviour = "range",
+	},
 }
 
 local python_keys = {
-	expression_statement = true,
-	parameters = "block",
-	parenthesized_expression = "block",
-	comparison_operator = "block",
-
-	sibling_block_placement_behaviour = "before",
-	placement_default_behaviour = "behind",
-
-	language_format_behaviour = "full",
+	nodes = {
+		expression_statement = true,
+		parameters = "block",
+		boolean_operator = "block",
+    not_operator = "block",
+		comparison_operator = "block",
+    identifier =  "block",
+    call = "block",
+    subscript = "block",
+	},
+	options = {
+		sibling_block_placement_behaviour = "before",
+		placement_default_behaviour = "behind",
+		language_format_behaviour = "full",
+	},
 }
 
 M.supported_languages = {
@@ -41,15 +56,26 @@ M.supported_languages = {
 	python = python_keys,
 }
 
-local skip_types = {
-	comment = true,
-	["=>"] = true,
-	[":"] = true,
+--[[ local skip_types = { ]]
+--[[ 	comment = true, ]]
+--[[ 	["type_annotation"] = true, ]]
+--[[ 	["=>"] = true, ]]
+--[[ 	[":"] = true, ]]
+--[[ 	[")"] = true, ]]
+--[[ 	["("] = true, ]]
+--[[ 	["}"] = true, ]]
+--[[ 	["{"] = true, ]]
+--[[ 	["in"] = true, ]]
+--[[ 	["sib"] = true, ]]
+--[[ } ]]
+
+local allowed_siblings = {
+  block = true,
+  statement_block = true,
 }
 
 local function getSibling(node)
 	local type_text_node = node:type()
-
 	local sibling = node:next_sibling()
 
 	if sibling == nil then
@@ -57,32 +83,47 @@ local function getSibling(node)
 	end
 
 	while true do
-		if skip_types[sibling:type()] then
+		if allowed_siblings[sibling:type()] == nil then
 			sibling = sibling:next_sibling()
+			if sibling == nil then
+				return node
+			end
 		else
 			break
 		end
 	end
 
 	local type_text_sibling = sibling:type()
+	print(type_text_node, type_text_sibling, "sib")
 
-	if M.language_keys[type_text_node] == type_text_sibling then
-		return sibling, M.language_keys["sibling_block_placement_behaviour"]
+	if M.language_keys["nodes"][type_text_node] == type_text_sibling then
+		return sibling, M.language_keys["options"]["sibling_block_placement_behaviour"]
 	else
 		return node
 	end
 end
 
 local function getParent(node, cnt)
-	if cnt > 10 or node == nil then
+	if cnt > 25 or node == nil then
 		return nil
 	end
 
 	local type_text = node:type()
+	print(type_text, "NODE TEXT")
 
-	if M.language_keys[type_text] then
-		local outnode, direction = getSibling(node)
-		return outnode, direction
+	local sibling_reference = M.language_keys["nodes"][type_text]
+	if sibling_reference then
+		if type(sibling_reference) == "boolean" then
+			return node
+		else
+      print("GETTING SIBLING")
+			local outnode, direction = getSibling(node)
+			if direction == nil then
+				return getParent(node:parent(), cnt + 1)
+			else
+				return outnode, direction
+			end
+		end
 	end
 
 	return getParent(node:parent(), cnt + 1)
@@ -93,32 +134,34 @@ local function set_print_statement(node, print_text, placement, format) -- hello
 
 	local row_s
 	local row_e
-	local updated_text = print_text
+	local updated_text
 
 	if placement == "inside" then
 		row_s = start_row
 		row_e = start_row + 1
 
 		local current_text = vim.api.nvim_buf_get_lines(0, row_s, row_e, true)[1]
-		updated_text = current_text:sub(1, start_idx + 1) .. print_text .. ";" .. current_text:sub(start_idx + 2)
+		updated_text = { current_text:sub(1, start_idx + 1) .. print_text .. ";" .. current_text:sub(start_idx + 2) }
 	elseif placement == "before" then
 		row_s = start_row
 		row_e = start_row + 1
 
 		local current_text = vim.api.nvim_buf_get_lines(0, row_s, row_e, true)[1]
-		updated_text = current_text:sub(1, start_idx + 0) .. print_text .. ";" .. current_text:sub(start_idx + 1)
+		updated_text = current_text:sub(1, start_idx + 0) .. print_text .. ";"
+		updated_text = { updated_text, current_text }
 	elseif placement == "behind" then
-		row_s = start_row
-		row_e = start_row + 1
+		row_s = end_row
+		row_e = end_row + 1
 
 		local current_text = vim.api.nvim_buf_get_lines(0, row_s, row_e, true)[1]
-		updated_text = current_text:sub(1, end_idx + 0) .. ";" .. print_text .. current_text:sub(end_idx + 1)
+		updated_text = { current_text .. ";" .. print_text }
 	else
 		row_s = end_row + 1
 		row_e = end_row + 1
+		updated_text = { print_text }
 	end
 
-	vim.api.nvim_buf_set_lines(0, row_s, row_e, true, { updated_text })
+	vim.api.nvim_buf_set_lines(0, row_s, row_e, true, updated_text)
 
 	if format == "range" then
 		vim.lsp.buf.format({ range = {
@@ -135,23 +178,24 @@ M.insert_print = function()
 	M.language_keys = M.supported_languages[ft]
 	if M.language_keys == nil then
 		print("No language keys found for filetype: " .. ft)
+		return
 	end
 
 	local node_at_cursor = ts_utils.get_node_at_cursor(0)
 	local outp, placement = getParent(node_at_cursor, 0) --[[ or node_at_cursor ]]
 
 	outp = outp or node_at_cursor
-	placement = placement or M.language_keys["placement_default_behaviour"]
-	local format = M.language_keys["language_format_behaviour"]
+	placement = placement or M.language_keys["options"]["placement_default_behaviour"]
+	local format = M.language_keys["options"]["language_format_behaviour"]
 
 	set_print_statement(outp, "print('HELLO')", placement, format)
 end
 
-M.insert_print()
+--[[ M.insert_print() ]]
 
---[[ vim.keymap.set("n", "<leader>lg", function() ]]
---[[   R("zippy").insert_print() ]]
---[[ end) ]]
+vim.keymap.set("n", "<leader>lg", function()
+  R("zippy").insert_print()
+end)
 
 --[[ local r = ts_locals.get_scope_tree(node_at_cursor) ]]
 --[[ local closest_scope = r[1] ]]
