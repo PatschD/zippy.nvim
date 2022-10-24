@@ -12,6 +12,7 @@ local lua_keys = {
 	},
 	options = {
 		language_format_behaviour = "range",
+		print_function = "print",
 	},
 }
 
@@ -26,6 +27,7 @@ local js_keys = {
 	options = {
 		sibling_block_placement_behaviour = "inside",
 		language_format_behaviour = "range",
+		print_function = "console.log",
 	},
 }
 
@@ -34,18 +36,19 @@ local python_keys = {
 		expression_statement = true,
 		parameters = "block",
 		boolean_operator = "block",
-    not_operator = "block",
+		not_operator = "block",
 		comparison_operator = "block",
-    identifier =  "block",
-    call = "block",
-    subscript = "block",
-    with_clause = "block",
-    pattern_list = "block",
+		identifier = "block",
+		call = "block",
+		subscript = "block",
+		with_clause = "block",
+		pattern_list = "block",
 	},
 	options = {
 		sibling_block_placement_behaviour = "before",
 		placement_default_behaviour = "behind",
 		language_format_behaviour = "full",
+		print_function = "print",
 	},
 }
 
@@ -58,22 +61,9 @@ M.supported_languages = {
 	python = python_keys,
 }
 
---[[ local skip_types = { ]]
---[[ 	comment = true, ]]
---[[ 	["type_annotation"] = true, ]]
---[[ 	["=>"] = true, ]]
---[[ 	[":"] = true, ]]
---[[ 	[")"] = true, ]]
---[[ 	["("] = true, ]]
---[[ 	["}"] = true, ]]
---[[ 	["{"] = true, ]]
---[[ 	["in"] = true, ]]
---[[ 	["sib"] = true, ]]
---[[ } ]]
-
 local allowed_siblings = {
-  block = true,
-  statement_block = true,
+	block = true,
+	statement_block = true,
 }
 
 local function getSibling(node)
@@ -111,14 +101,12 @@ local function getParent(node, cnt)
 	end
 
 	local type_text = node:type()
-	print(type_text, "NODE TEXT")
 
 	local sibling_reference = M.language_keys["nodes"][type_text]
 	if sibling_reference then
 		if type(sibling_reference) == "boolean" then
 			return node
 		else
-      print("GETTING SIBLING")
 			local outnode, direction = getSibling(node)
 			if direction == nil then
 				return getParent(node:parent(), cnt + 1)
@@ -130,6 +118,47 @@ local function getParent(node, cnt)
 
 	return getParent(node:parent(), cnt + 1)
 end
+
+M.get_gps = function()
+	local status_gps_ok, gps = pcall(require, "nvim-navic")
+	if not status_gps_ok then
+		return ""
+	end
+
+	local status_ok, gps_location = pcall(gps.get_location, {})
+	if not status_ok then
+		return ""
+	end
+
+	if not gps.is_available() or gps_location == "error" then
+		return ""
+	end
+
+	local breadcrumbs = "~"
+	local sep = "%*"
+	for i in string.gmatch(gps_location, "([^" .. sep .. "]+)") do
+		local var = string.find(i, "NavicText")
+		if var ~= nil then
+			i = i:gsub("NavicText", "")
+			i = i:gsub("%#", ""):gsub("%%", "")
+			breadcrumbs = breadcrumbs .. i .. "->"
+		end
+	end
+	return breadcrumbs:sub(1, -3)
+end
+
+M.get_text = function()
+	local filename = vim.fn.expand("%:t")
+	local current_text = vim.fn.expand("<cword>")
+	local line_nr, _ = unpack(vim.api.nvim_win_get_cursor(0))
+
+	local breadcrumbs = M.get_gps()
+
+	local text = "file: " .. filename .. "~" .. "line: " .. line_nr .. breadcrumbs .. "~" .. current_text
+	return text, current_text
+end
+
+M.get_text()
 
 local function set_print_statement(node, print_text, placement, format) -- hello lll
 	local start_row, start_idx, end_row, end_idx = node:range()
@@ -189,8 +218,11 @@ M.insert_print = function()
 	outp = outp or node_at_cursor
 	placement = placement or M.language_keys["options"]["placement_default_behaviour"]
 	local format = M.language_keys["options"]["language_format_behaviour"]
+	local print_fn = M.language_keys["options"]["print_function"]
+  local t, i = M.get_text() 
+  local print_text = print_fn .. "('" .. t .. "', " .. i .. ")"
 
-	set_print_statement(outp, "print('HELLO')", placement, format)
+	set_print_statement(outp,print_text, placement, format)
 end
 
 --[[ M.insert_print() ]]
