@@ -227,9 +227,9 @@ end
 
 --[[ M.insert_print() ]]
 
-vim.keymap.set("n", "<leader>lg", function()
-  R("zippy").insert_print()
-end)
+--[[ vim.keymap.set("n", "<leader>lg", function() ]]
+--[[   R("zippy").insert_print() ]]
+--[[ end) ]]
 
 --[[ local r = ts_locals.get_scope_tree(node_at_cursor) ]]
 --[[ local closest_scope = r[1] ]]
