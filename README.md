@@ -26,6 +26,12 @@ Packer:
 use 'PatschD/zippy.nvim'
 ```
 
+## Keymap
+
+vim.keymap.set("n", "<leader>lg", "<cmd>lua require('zippy').insert_print()<CR>")
+  
+  
+
 ## Setup
 
 <a href="https://github.com/nvim-treesitter/nvim-treesitter" target="_blank" rel="noopener noreferrer"> Tree-sitter is required</a> <br/>
@@ -53,6 +59,3 @@ require("zippy").setup({
 )
 ```
 
-## Keymap
-
-vim.keymap.set("n", "<leader>lg", "<cmd>lua require('zippy').insert_print()<CR>")
