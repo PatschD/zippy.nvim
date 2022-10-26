@@ -61,6 +61,15 @@ M.supported_languages = {
 	python = python_keys,
 }
 
+M.setup = function(opts)
+	for k, v in pairs(opts) do
+		--[[ can you spread tables in lua {...v}? ]]
+		for inner_k, inner_v in pairs(v) do
+			M.supported_languages[k]["options"][inner_k] = inner_v
+		end
+	end
+end
+
 local allowed_siblings = {
 	block = true,
 	statement_block = true,
@@ -86,7 +95,6 @@ local function getSibling(node)
 	end
 
 	local type_text_sibling = sibling:type()
-	print(type_text_node, type_text_sibling, "sib")
 
 	if M.language_keys["nodes"][type_text_node] == type_text_sibling then
 		return sibling, M.language_keys["options"]["sibling_block_placement_behaviour"]
@@ -161,7 +169,7 @@ end
 M.get_text()
 
 local function set_print_statement(node, print_text, placement, format) -- hello lll
-	local start_row, start_idx, end_row, end_idx = node:range()
+	local start_row, start_idx, end_row, _ = node:range()
 
 	local row_s
 	local row_e
@@ -219,67 +227,10 @@ M.insert_print = function()
 	placement = placement or M.language_keys["options"]["placement_default_behaviour"]
 	local format = M.language_keys["options"]["language_format_behaviour"]
 	local print_fn = M.language_keys["options"]["print_function"]
-  local t, i = M.get_text() 
-  local print_text = print_fn .. "('" .. t .. "', " .. i .. ")"
+	local t, i = M.get_text()
+	local print_text = print_fn .. "('" .. t .. "', " .. i .. ")"
 
-	set_print_statement(outp,print_text, placement, format)
+	set_print_statement(outp, print_text, placement, format)
 end
-
---[[ M.insert_print() ]]
-
---[[ vim.keymap.set("n", "<leader>lg", function() ]]
---[[   R("zippy").insert_print() ]]
---[[ end) ]]
-
---[[ local r = ts_locals.get_scope_tree(node_at_cursor) ]]
---[[ local closest_scope = r[1] ]]
---[[ print(closest_scope, "closest_scope") ]]
---[[ print(node_at_cursor, "node_at_cursor") ]]
-
---[[ for k, v in ipairs(r) do ]]
---[[ 	print(k, v) ]]
---[[ 	P(v) ]]
---[[ 	local text_current = vim.treesitter.query.get_node_text(v, 0) ]]
---[[ 	print(text_current) ]]
---[[ 	ts_utils.highlight_node(v, 0, usage_namespace, "ZIPPY") ]]
---[[ 	break ]]
---[[ end ]]
-
---[[ ts_utils.highlight_node(current_scope, 0, usage_namespace, "ZIPPY") ]]
---[[ P(current_scope) ]]
-
---[[ local text_current = vim.treesitter.query.get_node_text(current_scope, 0) ]]
---[[ P(text_current) ]]
-
---[[ local res = ts_locals.get_scopes() ]]
---[[ P(res) ]]
-
---[[ local ts_statusline = require("nvim-treesitter.statusline") ]]
---[[  local f = require'nvim-treesitter'.statusline({}) ]]
---[[ print(f, "F") ]]
-
---[[ local usage_namespace = vim.api.nvim_create_namespace("nvim-treesitter-usages") ]]
---[[ local cursor_pos = vim.api.nvim_win_get_cursor(0) ]]
---[[ vim.api.nvim_set_hl(0, "ZIPPY", { default = true, bg = "#000000", fg = "#ffffff" }) ]]
-
---[[ local text = vim.treesitter.query.get_node_text(node_at_cursor, 0) ]]
---[[ P(text) ]]
-
---[[ local parent = node_at_cursor:parent() ]]
---[[ local textParent = vim.treesitter.query.get_node_text(parent, 0) ]]
---[[ P(textParent) ]]
-
---[[ local parent = ts_utils.get_root_for_node(node_at_cursor) ]]
---[[ local textParent = vim.treesitter.query.get_node_text(parent, 0) ]]
---[[ P(textParent) ]]
-
---[[ ts_utils.highlight_node(node_at_cursor, 0, usage_namespace, "ZIPPY") ]]
---[[ print(node_at_cursor) ]]
---[[ print(ts_utils.get_node_range(node_at_cursor), "node_length") ]]
---[[ local range_of_node = ts_utils.get_node_range(node_at_cursor) ]]
---[[ P(range_of_node) ]]
---[[ ts_utils.goto_node(node_at_cursor, 1, 1) ]]
---[[ case variable ]]
---[[ start at itentifier and iterate until the next assignemt_statement, local decleration ]]
 
 return M
