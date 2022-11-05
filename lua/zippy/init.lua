@@ -1,4 +1,6 @@
-local M = {}
+local M = {
+	empty_count = 0
+}
 
 local ts_utils = require("nvim-treesitter.ts_utils")
 
@@ -170,6 +172,7 @@ M.get_text()
 
 local function set_print_statement(node, print_text, placement, format) -- hello lll
 	local start_row, start_idx, end_row, _ = node:range()
+	local type = node:type()
 
 	local row_s
 	local row_e
@@ -194,6 +197,11 @@ local function set_print_statement(node, print_text, placement, format) -- hello
 
 		local current_text = vim.api.nvim_buf_get_lines(0, row_s, row_e, true)[1]
 		updated_text = { current_text .. ";" .. print_text }
+	elseif type == "program" then
+		local lineNum = vim.api.nvim_win_get_cursor(0)[1]
+		row_s = lineNum - 1
+		row_e = lineNum - 1
+		updated_text = { print_text }
 	else
 		row_s = end_row + 1
 		row_e = end_row + 1
@@ -220,6 +228,7 @@ M.insert_print = function()
 		return
 	end
 
+
 	local node_at_cursor = ts_utils.get_node_at_cursor(0)
 	local outp, placement = getParent(node_at_cursor, 0) --[[ or node_at_cursor ]]
 
@@ -229,6 +238,10 @@ M.insert_print = function()
 	local print_fn = M.language_keys["options"]["print_function"]
 	local t, i = M.get_text()
 	local print_text = print_fn .. "('" .. t .. "', " .. i .. ")"
+	if outp:type() == 'program' then
+		print_text = print_fn .. "('" .. t .. "', " .. M.empty_count .. ")"
+		M.empty_count = M.empty_count + 1
+	end
 
 	set_print_statement(outp, print_text, placement, format)
 end
