@@ -8,7 +8,7 @@ the main functionality is to insert meaningful print statements automatically.
 
 ![image](https://user-images.githubusercontent.com/80820813/198012504-11da9e43-4bdd-4982-b37f-7c8670e91d37.png)
 
-the print statement is formatted as 
+the print statement is formatted as
 ```
 - file name -> line number -> variable
 ```
@@ -31,7 +31,7 @@ use 'PatschD/zippy.nvim'
 ```
 vim.keymap.set("n", "<leader>lg", "<cmd>lua require('zippy').insert_print()<CR>")
 ```
-  
+
 
 ## Setup
 
@@ -48,15 +48,15 @@ as lua, javascript and python are quite different (indentations, newlines), zipp
 - print function:
 if you have a custom print function you can pass that instead.
 
-```
+```lua
 require("zippy").setup({
   ["lua"] = {
-    language_format_behaviour = "none", 
+    language_format_behaviour = "none",
     print_function = "print",
   },
-  ["typescriptreact] = {
+  ["typescriptreact"] = {
     print_function = "console.warn",
   }
-)
+})
 ```
 
